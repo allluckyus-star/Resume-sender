@@ -17,6 +17,92 @@ let lastCopyTriggerAt = 0;
 let lastGptResultSentAt = 0;
 let lastGptResultSentText = "";
 let autoCaptureJob = null;
+/** Last pointer position in page coordinates (for toolbar placement when selection has no DOM range). */
+let lastPointerPageXY = { x: 0, y: 0 };
+/**
+ * After mouseup shows the toolbar, the following click often fires with an already-collapsed
+ * selection; skip one empty-selection clear so the buttons are not removed immediately.
+ */
+let suppressToolbarClearOnce = false;
+let lastToolbarShownAt = 0;
+
+function trackPointerForToolbar(e) {
+  lastPointerPageXY = { x: e.pageX, y: e.pageY };
+}
+
+function isTextLikeInput(el) {
+  if (!(el instanceof HTMLInputElement)) return false;
+  const blocked = new Set([
+    "button",
+    "checkbox",
+    "color",
+    "date",
+    "datetime-local",
+    "file",
+    "hidden",
+    "image",
+    "month",
+    "radio",
+    "range",
+    "reset",
+    "submit",
+    "time",
+    "week",
+  ]);
+  const t = String(el.type || "text").toLowerCase();
+  return !blocked.has(t);
+}
+
+/** Selected text inside a focused text control (window.getSelection() is often empty there). */
+function getFormControlSelectionText(el) {
+  if (!el) return "";
+  if (el instanceof HTMLTextAreaElement) {
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    if (typeof start !== "number" || typeof end !== "number" || start === end) return "";
+    return String(el.value || "").slice(start, end);
+  }
+  if (el instanceof HTMLInputElement && isTextLikeInput(el)) {
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    if (typeof start !== "number" || typeof end !== "number" || start === end) return "";
+    return String(el.value || "").slice(start, end);
+  }
+  return "";
+}
+
+function getCombinedSelectedText() {
+  const fromWindow = String(window.getSelection()?.toString() || "");
+  const winTrim = fromWindow.trim();
+  if (winTrim.length > 0) return fromWindow.trim();
+  return String(getFormControlSelectionText(document.activeElement) || "").trim();
+}
+
+function getSelectionAnchorPageXY(selection, mouseEvent) {
+  if (selection && selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    if (!range.collapsed && (rect.width > 1 || rect.height > 1)) {
+      return {
+        x: window.scrollX + rect.right,
+        y: window.scrollY + rect.top,
+      };
+    }
+  }
+  const el = document.activeElement;
+  if (el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && isTextLikeInput(el))) {
+    const r = el.getBoundingClientRect();
+    const x = window.scrollX + Math.min(r.right - 4, r.left + Math.max(72, r.width * 0.75));
+    const y = window.scrollY + r.top + 8;
+    return { x, y };
+  }
+  const px = mouseEvent?.pageX ?? lastPointerPageXY.x;
+  const py = mouseEvent?.pageY ?? lastPointerPageXY.y;
+  if (px > 0 || py > 0) {
+    return { x: px, y: py };
+  }
+  return { x: window.scrollX + 120, y: window.scrollY + 120 };
+}
 
 // ===== MAIN HANDLER =====
 function handleClick(e) {
@@ -37,13 +123,19 @@ function handleClick(e) {
     }
   }
 
-  const text = window.getSelection().toString().trim();
+  const text = getCombinedSelectedText();
 
   if (!isUsableSelection(text)) {
+    if (suppressToolbarClearOnce && Date.now() - lastToolbarShownAt < 500) {
+      suppressToolbarClearOnce = false;
+      return;
+    }
+    suppressToolbarClearOnce = false;
     removeButtons();
     return;
   }
 
+  suppressToolbarClearOnce = false;
   showSelectionButtons(e.pageX, e.pageY, text);
 }
 
@@ -61,7 +153,7 @@ function getControlAnchorPoint(control, event) {
 }
 
 function handleCopy() {
-  const copied = window.getSelection()?.toString().trim();
+  const copied = getCombinedSelectedText();
   if (isUsableSelection(copied)) {
     lastCopiedText = copied;
     lastCopyTriggerAt = Date.now();
@@ -164,13 +256,14 @@ function handleKeydown(event) {
   }
 }
 
-function showButtonsFromSelection() {
+function showButtonsFromSelection(mouseEvent) {
   const selection = window.getSelection();
-  const text = selection?.toString().trim();
-  if (isUsableSelection(text) && selection.rangeCount > 0) {
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    showSelectionButtons(window.scrollX + rect.right, window.scrollY + rect.top, text);
+  const text = getCombinedSelectedText();
+  if (isUsableSelection(text)) {
+    const anchor = getSelectionAnchorPageXY(selection, mouseEvent);
+    lastToolbarShownAt = Date.now();
+    suppressToolbarClearOnce = true;
+    showSelectionButtons(anchor.x, anchor.y, text);
     return;
   }
   const recentlyCopied = Date.now() - lastCopyTriggerAt < 1500;
@@ -290,7 +383,8 @@ function enable() {
   if (isActive) return;
 
   document.addEventListener("click", handleClick, true);
-  document.addEventListener("mouseup", showButtonsFromSelection);
+  document.addEventListener("mousemove", trackPointerForToolbar, { passive: true, capture: true });
+  document.addEventListener("mouseup", showButtonsFromSelection, true);
   document.addEventListener("copy", handleCopy);
   document.addEventListener("keydown", handleKeydown);
   isActive = true;
@@ -302,7 +396,8 @@ function disable() {
   if (!isActive) return;
 
   document.removeEventListener("click", handleClick, true);
-  document.removeEventListener("mouseup", showButtonsFromSelection);
+  document.removeEventListener("mousemove", trackPointerForToolbar, { capture: true });
+  document.removeEventListener("mouseup", showButtonsFromSelection, true);
   document.removeEventListener("copy", handleCopy);
   document.removeEventListener("keydown", handleKeydown);
 

@@ -264,7 +264,13 @@ IF ANY = NO → REWRITE
 ---
 
 `;
-const LOCKED_PROMPT_SUFFIX = `Reply with ONE JSON object only: plain UTF-8 text, valid JSON, no markdown fences (no triple backticks), no preamble or postscript before the first "{" or after the final "}". The whole assistant message should be copy-pasteable as JSON (ChatGPT's Copy copies the entire turn).
+const LOCKED_PROMPT_SUFFIX = `=== CHAT HISTORY ISOLATION (MANDATORY) ===
+ChatGPT keeps prior turns in this thread. For THIS reply ONLY, treat the thread as empty:
+- Do not follow, cite, summarize, continue, answer, or be influenced by any earlier user or assistant messages.
+- Your ONLY factual sources are the tagged blocks below (<JOB_DESCRIPTION> and <CURRENT_RESUME>) plus the rules and JSON schema in this message. If chat history conflicts with those tags, ignore the history entirely.
+- Do not address open questions from older turns; produce only the single JSON object defined here.
+
+Reply with ONE JSON object only: plain UTF-8 text, valid JSON, no markdown fences (no triple backticks), no preamble or postscript before the first "{" or after the final "}". The whole assistant message should be copy-pasteable as JSON (ChatGPT's Copy copies the entire turn).
 
 Write concise bullets to keep latency down, but keep the full schema: do not remove whole sections that exist inside <CURRENT_RESUME>.
 

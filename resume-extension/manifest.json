@@ -2,6 +2,13 @@
   "manifest_version": 3,
   "name": "Resume Sender",
   "version": "1.0",
+  "description": "Send job descriptions and resume context to your local Resume Sender backend; ChatGPT shortcuts and downloads.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "permissions": ["storage", "scripting", "contextMenus", "notifications", "tabs", "activeTab", "clipboardWrite", "downloads"],
   "host_permissions": [
     "http://192.168.100.17:8000/*",
@@ -35,7 +42,14 @@
     }
   },
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Resume Sender"
   },
   "content_scripts": [
     {
