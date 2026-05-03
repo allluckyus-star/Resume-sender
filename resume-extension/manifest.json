@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Resume Sender",
+  "version": "1.0",
+  "permissions": ["storage", "scripting", "contextMenus", "notifications", "tabs", "activeTab", "clipboardWrite", "downloads"],
+  "host_permissions": [
+    "http://192.168.100.17:8000/*",
+    "http://localhost:8787/*",
+    "http://127.0.0.1:8787/*",
+    "https://chatgpt.com/*",
+    "https://*.chatgpt.com/*",
+    "https://chat.openai.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "toggle-extension": {
+      "suggested_key": {
+        "default": "Alt+Q"
+      },
+      "description": "Toggle extension ON/OFF"
+    },
+    "generate-chatgpt-prompt": {
+      "suggested_key": {
+        "default": "Alt+W"
+      },
+      "description": "Copy stored resume prompt on ChatGPT"
+    },
+    "download-resume": {
+      "suggested_key": {
+        "default": "Alt+A"
+      },
+      "description": "Download optimized resume DOCX"
+    }
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}

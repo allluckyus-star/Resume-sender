@@ -1,0 +1,11 @@
+Windows Registry Editor Version 5.00
+;
+; Optional one-time install — the Resume Sender gateway normally creates
+; send(...) entries under HKCU\Software\Classes\*\shell\ResumeSenderUpload_* for you.
+; Legacy single key (removed on next User ID sync from the extension):
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\SendToResume]
+@="send(not set)"
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\SendToResume\command]
+@="\"C:\\ResumeSender\\upload.bat\" \"%1\""
